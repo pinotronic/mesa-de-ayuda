@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Reparaciones - Soporte</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 p-6">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-400">🛠️ Sistema de Tickets WA</h1>
+            <button onclick="cargar()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition">Actualizar</button>
+        </div>
+        <div class="bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
+            <table class="w-full text-left">
+                <thead class="bg-slate-700 text-blue-300 uppercase text-xs">
+                    <tr>
+                        <th class="p-4">ID</th><th class="p-4">Cliente</th><th class="p-4">Evidencia</th>
+                        <th class="p-4">Falla / Descripción</th><th class="p-4">Categoría</th><th class="p-4">Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="lista" class="divide-y divide-slate-700"></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        async function cargar() {
+            const res = await fetch('/tickets');
+            const data = await res.json();
+            document.getElementById('lista').innerHTML = data.tickets.map(t => `
+                <tr class="hover:bg-slate-750 transition">
+                    <td class="p-4 font-mono text-blue-400">#${t[0]}</td>
+                    <td class="p-4 font-semibold">${t[1].split('@')[0]}</td>
+                    <td class="p-4">
+                        ${t[6] ? `<a href="/fotos/${t[6]}" target="_blank"><img src="/fotos/${t[6]}" class="w-12 h-12 object-cover rounded-md border border-slate-600"></a>` : '<span class="text-slate-500">Sin foto</span>'}
+                    </td>
+                    <td class="p-4 text-sm text-slate-300">${t[2]}</td>
+                    <td class="p-4"><span class="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs border border-blue-800">${t[4]}</span></td>
+                    <td class="p-4">
+                        <button onclick="responder(${t[0]})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1 rounded-md text-sm transition">Notificar Recibido</button>
+                    </td>
+                </tr>`).join('');
+        }
+        async function responder(id) {
+            const r = await fetch(`/responder/${id}`, {method:'POST'});
+            const res = await r.json();
+            alert(res.status);
+        }
+        cargar();
+        setInterval(cargar, 30000);
+    </script>
+</body>
+</html>

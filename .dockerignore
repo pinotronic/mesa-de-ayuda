@@ -1,0 +1,29 @@
+# Node modules y archivos de laptop
+node_modules
+sesion_wa
+cola_mensajes
+whatsapp-bridge.js
+package.json
+package-lock.json
+
+# Archivos de entorno
+.env
+.env.*
+
+# Git
+.git
+.gitignore
+
+# Datos locales
+tickets.db
+fotos_evidencia
+*.log
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentación
+readme.md
+instruccion.md

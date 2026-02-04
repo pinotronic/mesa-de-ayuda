@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  whatsapp-tickets-server:
+    build: .
+    container_name: wa-tickets-server
+    restart: unless-stopped
+    ports:
+      - "8523:8523"
+    environment:
+      - IP_LAPTOP=${IP_LAPTOP}
+      - PUERTO_LAPTOP=${PUERTO_LAPTOP}
+      - API_TOKEN=${API_TOKEN}
+      - MAX_IMAGE_SIZE=${MAX_IMAGE_SIZE:-16000000}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+    volumes:
+      # Persistir base de datos
+      - ./tickets.db:/app/tickets.db
+      # Persistir fotos
+      - ./fotos_evidencia:/app/fotos_evidencia
+    networks:
+      - tickets-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8523/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tickets-network:
+    driver: bridge
