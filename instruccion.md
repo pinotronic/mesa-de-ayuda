@@ -69,3 +69,4 @@ PUERTO_LOCAL=9000
 # ⚠️ DEBE SER EL MISMO token que configuraste en el servidor Docker (.env del servidor)
 API_TOKEN=1234567890
 ```
+
