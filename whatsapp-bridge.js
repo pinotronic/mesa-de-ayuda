@@ -31,6 +31,22 @@ function log(mensaje, tipo = 'INFO') {
     console.log(`[${timestamp}] ${emojis[tipo] || 'ℹ️'} ${mensaje}`);
 }
 
+// Función para extraer el número telefónico del JID (soporta formato LID y tradicional)
+function extraerNumeroTelefonico(jid) {
+    if (!jid) return null;
+    
+    // Formato: numero@s.whatsapp.net o numero@lid
+    const numero = jid.split('@')[0];
+    
+    // Si tiene el formato tradicional con sufijo @s.whatsapp.net, agrégalo de vuelta
+    // Si es LID, convertir a formato estándar de WhatsApp
+    if (jid.includes('@lid')) {
+        return numero + '@s.whatsapp.net';
+    }
+    
+    return jid;
+}
+
 async function enviarConReintentos(datos, intento = 1) {
     try {
         await axios.post(`${SERVER_URL}/webhook`, datos, {
@@ -149,8 +165,11 @@ async function iniciar() {
         }
 
         if (texto || imgB64) {
+            const numeroLimpio = extraerNumeroTelefonico(m.key.remoteJid);
+            log(`Mensaje recibido de: ${numeroLimpio} (JID original: ${m.key.remoteJid})`, 'INFO');
+            
             await enviarConReintentos({
-                remitente: m.key.remoteJid,
+                remitente: numeroLimpio,
                 contenido: texto,
                 imagen: imgB64
             });

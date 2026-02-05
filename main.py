@@ -55,6 +55,26 @@ app.add_middleware(
 
 app.mount("/fotos", StaticFiles(directory=CARPETA_FOTOS), name="fotos")
 
+# --- UTILIDADES ---
+def limpiar_numero_telefono(numero: str) -> str:
+    """
+    Limpia el número telefónico del formato JID de WhatsApp (LID o tradicional).
+    Convierte: 257354507501662@lid -> +257354507501662
+    Convierte: 5214772758198@s.whatsapp.net -> +5214772758198
+    """
+    if not numero:
+        return numero
+    
+    # Extraer solo el número antes del @
+    if '@' in numero:
+        numero = numero.split('@')[0]
+    
+    # Agregar + al inicio si no lo tiene
+    if not numero.startswith('+'):
+        numero = '+' + numero
+    
+    return numero
+
 # --- BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect('tickets.db')
@@ -115,6 +135,9 @@ class MensajeWA(BaseModel):
     remitente: str
     contenido: str
     imagen: Optional[str] = None
+
+class MensajeTecnico(BaseModel):
+    mensaje: str
 
 # --- CLASES DE CONVERSACIÓN ---
 class ConversationSession:
@@ -300,7 +323,7 @@ def guardar_ticket(sesion: ConversationSession) -> int:
             diagnostico_ia, requiere_tecnico, historial_conversacion
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ''', (
-        sesion.remitente,
+        limpiar_numero_telefono(sesion.remitente),
         sesion.datos.get('nombre', ''),
         sesion.datos.get('departamento', ''),
         sesion.datos.get('tipo_equipo', ''),
@@ -624,6 +647,89 @@ async def descargar_log(ticket_id: int):
         raise HTTPException(status_code=404, detail="Archivo de log no existe")
 
     return FileResponse(log_path, filename=row[0])
+
+@app.post("/ticket/{ticket_id}/enviar-mensaje")
+async def enviar_mensaje_tecnico(ticket_id: int, data: MensajeTecnico):
+    """Envía un mensaje personalizado del técnico al usuario y lo guarda en el historial"""
+    try:
+        conn = sqlite3.connect('tickets.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT cliente, historial_conversacion, nombre_usuario FROM tickets WHERE id=?', (ticket_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Ticket no encontrado")
+        
+        telefono = row[0]
+        historial_json = row[1]
+        nombre_usuario = row[2] or "Usuario"
+        
+        # Parsear historial existente
+        try:
+            historial = json.loads(historial_json) if historial_json else []
+        except json.JSONDecodeError:
+            historial = []
+        
+        # Agregar mensaje del técnico al historial
+        nuevo_mensaje = {
+            "role": "tecnico",
+            "content": data.mensaje,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        historial.append(nuevo_mensaje)
+        
+        # Actualizar historial en BD
+        cursor.execute(
+            'UPDATE tickets SET historial_conversacion = ? WHERE id = ?',
+            (json.dumps(historial, ensure_ascii=False, indent=2), ticket_id)
+        )
+        conn.commit()
+        conn.close()
+        
+        # Enviar mensaje por WhatsApp
+        logger.info(f"Enviando mensaje del técnico al ticket #{ticket_id} ({telefono})")
+        
+        try:
+            response = requests.post(
+                f"http://{IP_LAPTOP}:{PUERTO_LAPTOP}/enviar-mensaje",
+                json={"numero": telefono, "texto": data.mensaje},
+                headers={"Authorization": f"Bearer {API_TOKEN}"},
+                timeout=5
+            )
+            response.raise_for_status()
+            logger.info(f"Mensaje enviado exitosamente a {telefono}")
+            return {
+                "status": "enviado", 
+                "ticket_id": ticket_id,
+                "telefono": telefono,
+                "mensaje": "Mensaje enviado correctamente"
+            }
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout al enviar mensaje para ticket #{ticket_id}")
+            raise HTTPException(status_code=504, detail="WhatsApp no responde (timeout)")
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Error de conexión con WhatsApp para ticket #{ticket_id}")
+            raise HTTPException(status_code=503, detail="WhatsApp desconectado. El mensaje se guardó pero no se pudo enviar.")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 503:
+                logger.warning(f"WhatsApp desconectado, mensaje guardado pero no enviado")
+                raise HTTPException(
+                    status_code=503, 
+                    detail="WhatsApp desconectado. El mensaje se guardó en el historial pero no se pudo enviar. Reconecta WhatsApp."
+                )
+            else:
+                logger.error(f"Error HTTP enviando mensaje: {e.response.status_code}")
+                raise HTTPException(status_code=500, detail=f"Error enviando mensaje: {e.response.text}")
+        except Exception as e:
+            logger.error(f"Error inesperado enviando mensaje: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error inesperado: {str(e)}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en enviar_mensaje_tecnico: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 @app.post("/responder/{t_id}")
 async def responder(t_id: int):

@@ -38,9 +38,19 @@
             color: #e2e8f0;
             border-bottom-left-radius: 4px;
         }
+        .chat-message.tecnico .message-bubble {
+            background-color: #059669;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+        #chatInteractivoContainer {
+            max-height: 400px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
         }
     </style>
 </head>
@@ -84,6 +94,45 @@
             <div class="bg-slate-700 px-6 py-3 border-t border-slate-600 flex gap-2">
                 <button onclick="cerrarModal()" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded transition">Cerrar</button>
                 <button onclick="descargarLog()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded transition">📥 Descargar Log</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Chat Interactivo -->
+    <div id="modalChatInteractivo" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-600">
+            <div class="bg-gradient-to-r from-purple-700 to-purple-600 px-6 py-4 border-b border-purple-500 flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-bold text-white">💬 Chat en Vivo</h3>
+                    <p class="text-sm text-purple-100 mt-1">Ticket #<span id="chatTicketId"></span> - <span id="chatNombreUsuario"></span></p>
+                </div>
+                <button onclick="cerrarChatInteractivo()" class="text-purple-200 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <div id="chatInteractivoContainer" class="overflow-y-auto p-6 flex-1 bg-slate-900"></div>
+            
+            <div class="bg-slate-700 px-6 py-4 border-t border-slate-600">
+                <div class="flex gap-3 items-end">
+                    <div class="flex-1">
+                        <textarea 
+                            id="mensajeTecnico" 
+                            rows="2" 
+                            placeholder="Escribe tu mensaje aquí..." 
+                            class="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-600 focus:border-purple-500 focus:outline-none resize-none"
+                            onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); enviarMensajeTecnico();}"
+                        ></textarea>
+                    </div>
+                    <button 
+                        onclick="enviarMensajeTecnico()" 
+                        class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 h-fit"
+                    >
+                        <span>📤</span> Enviar
+                    </button>
+                </div>
+                <div class="mt-2 flex justify-between items-center">
+                    <span class="text-xs text-slate-400">💡 Presiona Enter para enviar, Shift+Enter para nueva línea</span>
+                    <span class="text-xs text-slate-400">Teléfono: <span id="chatTelefono" class="font-mono"></span></span>
+                </div>
             </div>
         </div>
     </div>
@@ -137,7 +186,8 @@
                                 <span class="px-2 py-1 rounded-full text-xs font-semibold border ${estadoColor}">${estado}</span>
                             </td>
                             <td class="p-3 space-y-1">
-                                <button onclick="abrirConversacion(${id})" class="block w-full bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-xs transition">💬 Ver Chat</button>
+                                <button onclick="abrirChatInteractivo(${id}, '${cliente}', '${nombreUsuario}')" class="block w-full bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-xs transition font-semibold">💬 Chat en Vivo</button>
+                                <button onclick="abrirConversacion(${id})" class="block w-full bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-xs transition">📋 Historial</button>
                                 <button onclick="responder(${id})" class="block w-full bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-xs transition">✅ Notificar</button>
                             </td>
                         </tr>
@@ -189,6 +239,111 @@
             window.location.href = `/ticket/${ticketActualEnModal}/log`;
         }
 
+        // --- CHAT INTERACTIVO ---
+        let chatActivo = null;
+        let intervalActualizacionChat = null;
+
+        async function abrirChatInteractivo(ticketId, telefono, nombreUsuario) {
+            chatActivo = { ticketId, telefono, nombreUsuario };
+            
+            document.getElementById('chatTicketId').textContent = ticketId;
+            document.getElementById('chatNombreUsuario').textContent = nombreUsuario;
+            document.getElementById('chatTelefono').textContent = telefono;
+            document.getElementById('mensajeTecnico').value = '';
+            
+            await cargarMensajesChat();
+            document.getElementById('modalChatInteractivo').classList.remove('hidden');
+            document.getElementById('mensajeTecnico').focus();
+            
+            // Auto-actualizar chat cada 5 segundos
+            if (intervalActualizacionChat) clearInterval(intervalActualizacionChat);
+            intervalActualizacionChat = setInterval(cargarMensajesChat, 5000);
+        }
+
+        function cerrarChatInteractivo() {
+            chatActivo = null;
+            if (intervalActualizacionChat) {
+                clearInterval(intervalActualizacionChat);
+                intervalActualizacionChat = null;
+            }
+            document.getElementById('modalChatInteractivo').classList.add('hidden');
+        }
+
+        async function cargarMensajesChat() {
+            if (!chatActivo) return;
+            
+            try {
+                const res = await fetch(`/ticket/${chatActivo.ticketId}/conversacion`);
+                if (!res.ok) {
+                    document.getElementById('chatInteractivoContainer').innerHTML = '<div class="text-slate-400 text-center py-8">No hay conversación disponible</div>';
+                    return;
+                }
+
+                const data = await res.json();
+                const historial = data.historial || [];
+                const container = document.getElementById('chatInteractivoContainer');
+                const scrollAntes = container.scrollHeight - container.scrollTop;
+
+                container.innerHTML = historial.map(msg => {
+                    const esUsuario = msg.role === 'user';
+                    const esTecnico = msg.role === 'tecnico';
+                    const clase = esTecnico ? 'tecnico' : (esUsuario ? 'user' : 'assistant');
+                    const icono = esTecnico ? '👨‍💻' : (esUsuario ? '👤' : '🤖');
+                    
+                    return `
+                        <div class="chat-message ${clase}">
+                            <div class="message-bubble">
+                                <div class="text-xs opacity-75 mb-1 flex items-center gap-1">
+                                    <span>${icono}</span>
+                                    <span>${new Date(msg.timestamp).toLocaleString('es-ES')}</span>
+                                </div>
+                                <div>${msg.content.replace(/\n/g, '<br>')}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Scroll automático solo si estaba cerca del final
+                if (scrollAntes < 150) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error cargando mensajes:', error);
+            }
+        }
+
+        async function enviarMensajeTecnico() {
+            if (!chatActivo) return;
+            
+            const textarea = document.getElementById('mensajeTecnico');
+            const mensaje = textarea.value.trim();
+            
+            if (!mensaje) {
+                alert('⚠️ Escribe un mensaje primero');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/ticket/${chatActivo.ticketId}/enviar-mensaje`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensaje })
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Error desconocido');
+                }
+                
+                textarea.value = '';
+                textarea.focus();
+                await cargarMensajesChat();
+                
+            } catch (error) {
+                alert('❌ Error enviando mensaje: ' + error.message);
+            }
+        }
+
         async function responder(id) {
             try {
                 const r = await fetch(`/responder/${id}`, {method:'POST'});
@@ -206,9 +361,12 @@
         // Recargar cada 30 segundos
         setInterval(cargar, 30000);
 
-        // Permitir cerrar modal con ESC
+        // Permitir cerrar modales con ESC
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') cerrarModal();
+            if (e.key === 'Escape') {
+                cerrarModal();
+                cerrarChatInteractivo();
+            }
         });
     </script>
 </body>

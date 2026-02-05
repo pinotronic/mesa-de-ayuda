@@ -29,8 +29,11 @@ Sistema profesional de gestión de tickets de soporte técnico a través de What
 - ✅ Clasificación inteligente por IA (Hardware/Software)
 - ✅ Almacenamiento de evidencias fotográficas
 - ✅ Panel web responsive con Tailwind CSS
+- ✅ **💬 Chat en vivo técnico-usuario** (NUEVO)
 - ✅ Notificaciones automáticas a clientes
 - ✅ Actualización en tiempo real
+- ✅ Historial completo de conversaciones
+- ✅ Conversación interactiva con flujo guiado por IA
 
 ## 🚀 Inicio Rápido
 
@@ -57,6 +60,8 @@ docker-compose up -d
 ## 📚 Documentación
 
 - [DEPLOY.md](DEPLOY.md) - Guía completa de despliegue paso a paso
+- [CHAT-EN-VIVO.md](CHAT-EN-VIVO.md) - Sistema de chat interactivo técnico-usuario
+- [FIX-NUMEROS-LID.md](FIX-NUMEROS-LID.md) - Solución para formato LID de WhatsApp
 - [.env.example](.env.example) - Configuración del servidor
 - [.env.laptop.example](.env.laptop.example) - Configuración de laptop
 
