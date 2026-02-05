@@ -1,29 +1,41 @@
-# Node modules y archivos de laptop
-node_modules
-sesion_wa
-cola_mensajes
-whatsapp-bridge.js
-package.json
-package-lock.json
-
-# Archivos de entorno
+# Variables de entorno (no incluir en imagen Docker)
 .env
-.env.*
+.env.local
+.env.*.local
 
-# Git
+# Directorios de Node.js (para laptop, no servidor)
+node_modules
+npm-debug.log
+sesion_wa/
+cola_mensajes/
+
+# Control de versiones
 .git
 .gitignore
-
-# Datos locales
-tickets.db
-fotos_evidencia
-*.log
-
-# Docker
-Dockerfile
-docker-compose.yml
 .dockerignore
 
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+.pytest_cache
+.coverage
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
 # Documentación
-readme.md
-instruccion.md
+README.md
+*.md
+.editorconfig

@@ -4,50 +4,212 @@
     <meta charset="UTF-8">
     <title>Panel de Reparaciones - Soporte</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .table-cell-truncate {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .chat-message {
+            display: flex;
+            margin-bottom: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+        .chat-message.assistant {
+            justify-content: flex-start;
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            word-wrap: break-word;
+        }
+        .chat-message.user .message-bubble {
+            background-color: #3b82f6;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-message.assistant .message-bubble {
+            background-color: #475569;
+            color: #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-100 p-6">
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-7xl mx-auto">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-blue-400">🛠️ Sistema de Tickets WA</h1>
-            <button onclick="cargar()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition">Actualizar</button>
+            <h1 class="text-3xl font-bold text-blue-400">🛠️ Sistema de Tickets WhatsApp IA</h1>
+            <button onclick="cargar()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition">🔄 Actualizar</button>
         </div>
-        <div class="bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700">
-            <table class="w-full text-left">
-                <thead class="bg-slate-700 text-blue-300 uppercase text-xs">
+
+        <!-- Tabla de tickets -->
+        <div class="bg-slate-800 rounded-2xl shadow-2xl overflow-hidden border border-slate-700 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-700 text-blue-300 uppercase text-xs font-semibold sticky top-0">
                     <tr>
-                        <th class="p-4">ID</th><th class="p-4">Cliente</th><th class="p-4">Evidencia</th>
-                        <th class="p-4">Falla / Descripción</th><th class="p-4">Categoría</th><th class="p-4">Acción</th>
+                        <th class="p-3">ID</th>
+                        <th class="p-3">Teléfono</th>
+                        <th class="p-3">Nombre</th>
+                        <th class="p-3">Depto.</th>
+                        <th class="p-3">Equipo</th>
+                        <th class="p-3">Activo</th>
+                        <th class="p-3">Falla</th>
+                        <th class="p-3">Evidencia</th>
+                        <th class="p-3">Estado</th>
+                        <th class="p-3">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="lista" class="divide-y divide-slate-700"></tbody>
             </table>
         </div>
     </div>
+
+    <!-- Modal para ver conversación completa -->
+    <div id="modalConversacion" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col border border-slate-600">
+            <div class="bg-slate-700 px-6 py-4 border-b border-slate-600 flex justify-between items-center">
+                <h3 class="text-xl font-bold">Conversación Completa - Ticket #<span id="modalTicketId"></span></h3>
+                <button onclick="cerrarModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="historialConversacion" class="overflow-y-auto p-6 flex-1"></div>
+            <div class="bg-slate-700 px-6 py-3 border-t border-slate-600 flex gap-2">
+                <button onclick="cerrarModal()" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded transition">Cerrar</button>
+                <button onclick="descargarLog()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded transition">📥 Descargar Log</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let ticketActualEnModal = null;
+
         async function cargar() {
-            const res = await fetch('/tickets');
-            const data = await res.json();
-            document.getElementById('lista').innerHTML = data.tickets.map(t => `
-                <tr class="hover:bg-slate-750 transition">
-                    <td class="p-4 font-mono text-blue-400">#${t[0]}</td>
-                    <td class="p-4 font-semibold">${t[1].split('@')[0]}</td>
-                    <td class="p-4">
-                        ${t[6] ? `<a href="/fotos/${t[6]}" target="_blank"><img src="/fotos/${t[6]}" class="w-12 h-12 object-cover rounded-md border border-slate-600"></a>` : '<span class="text-slate-500">Sin foto</span>'}
-                    </td>
-                    <td class="p-4 text-sm text-slate-300">${t[2]}</td>
-                    <td class="p-4"><span class="bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-xs border border-blue-800">${t[4]}</span></td>
-                    <td class="p-4">
-                        <button onclick="responder(${t[0]})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1 rounded-md text-sm transition">Notificar Recibido</button>
-                    </td>
-                </tr>`).join('');
+            try {
+                const res = await fetch('/tickets');
+                const data = await res.json();
+
+                document.getElementById('lista').innerHTML = data.tickets.map(t => {
+                    // Índices según el schema de BD
+                    const id = t[0];
+                    const cliente = t[1]; // teléfono
+                    const descripcion = t[2];
+                    const estado = t[3];
+                    const categoria = t[4];
+                    const fecha = t[5];
+                    const fotoPath = t[6];
+                    const nombreUsuario = t[7] || 'N/A';
+                    const departamento = t[8] || 'N/A';
+                    const tipoEquipo = t[9] || 'N/A';
+                    const numeroActivo = t[10] || 'N/A';
+                    const fallaDetallada = t[11] || descripcion;
+                    const diagnostico = t[12] || '';
+                    const requiereTecnico = t[13];
+                    const estadoConversacion = t[14] || 'desconocido';
+                    const historialConversacion = t[15];
+
+                    const estadoColor = estado === 'Pendiente' ? 'bg-red-900/50 text-red-300 border-red-800' :
+                                       estado === 'En Proceso' ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' :
+                                       'bg-green-900/50 text-green-300 border-green-800';
+
+                    return `
+                        <tr class="hover:bg-slate-750 transition border-slate-700">
+                            <td class="p-3 font-mono text-blue-400 font-bold">#${id}</td>
+                            <td class="p-3 text-sm font-mono">${cliente}</td>
+                            <td class="p-3 font-semibold">${nombreUsuario}</td>
+                            <td class="p-3">${departamento}</td>
+                            <td class="p-3">${tipoEquipo}</td>
+                            <td class="p-3 font-mono text-slate-400">${numeroActivo}</td>
+                            <td class="p-3 text-sm table-cell-truncate" title="${fallaDetallada}">
+                                ${fallaDetallada.substring(0, 40)}${fallaDetallada.length > 40 ? '...' : ''}
+                            </td>
+                            <td class="p-3">
+                                ${fotoPath ? `<a href="/fotos/${fotoPath}" target="_blank" class="inline-block"><img src="/fotos/${fotoPath}" class="w-10 h-10 object-cover rounded border border-slate-500 hover:border-blue-400 transition cursor-pointer"></a>` : '<span class="text-slate-500 text-xs">Sin foto</span>'}
+                            </td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold border ${estadoColor}">${estado}</span>
+                            </td>
+                            <td class="p-3 space-y-1">
+                                <button onclick="abrirConversacion(${id})" class="block w-full bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-xs transition">💬 Ver Chat</button>
+                                <button onclick="responder(${id})" class="block w-full bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded text-xs transition">✅ Notificar</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error cargando tickets:', error);
+            }
         }
+
+        async function abrirConversacion(ticketId) {
+            ticketActualEnModal = ticketId;
+            document.getElementById('modalTicketId').textContent = ticketId;
+
+            try {
+                const res = await fetch(`/ticket/${ticketId}/conversacion`);
+                if (!res.ok) {
+                    document.getElementById('historialConversacion').innerHTML = '<div class="text-slate-400">No se encontró conversación para este ticket</div>';
+                    document.getElementById('modalConversacion').classList.remove('hidden');
+                    return;
+                }
+
+                const data = await res.json();
+                const historial = data.historial || [];
+
+                document.getElementById('historialConversacion').innerHTML = historial.map(msg => `
+                    <div class="chat-message ${msg.role}">
+                        <div class="message-bubble">
+                            <div class="text-xs opacity-75 mb-1">${new Date(msg.timestamp).toLocaleTimeString('es-ES')}</div>
+                            <div>${msg.content.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('modalConversacion').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error cargando conversación:', error);
+                document.getElementById('historialConversacion').innerHTML = '<div class="text-red-400">Error cargando la conversación</div>';
+                document.getElementById('modalConversacion').classList.remove('hidden');
+            }
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalConversacion').classList.add('hidden');
+        }
+
+        function descargarLog() {
+            if (!ticketActualEnModal) return;
+            window.location.href = `/ticket/${ticketActualEnModal}/log`;
+        }
+
         async function responder(id) {
-            const r = await fetch(`/responder/${id}`, {method:'POST'});
-            const res = await r.json();
-            alert(res.status);
+            try {
+                const r = await fetch(`/responder/${id}`, {method:'POST'});
+                const res = await r.json();
+                alert('✅ ' + res.status);
+                cargar();
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
         }
+
+        // Cargar tickets al abrir la página
         cargar();
+
+        // Recargar cada 30 segundos
         setInterval(cargar, 30000);
+
+        // Permitir cerrar modal con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cerrarModal();
+        });
     </script>
 </body>
 </html>

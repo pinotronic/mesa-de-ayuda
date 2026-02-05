@@ -40,3 +40,33 @@ Levantar FastAPI: uvicorn main:app --reload --port 8000
 Levantar el Puente de WhatsApp: node whatsapp_service.js
 
 Vincular: Escanea el QR que saldrá en la terminal de Node.js con tu celular.
+
+
+.env servidor
+
+```env
+IP_LAPTOP=172.16.76.153
+PUERTO_LAPTOP=9000
+API_TOKEN=1234567890
+MAX_IMAGE_SIZE=16000000
+ALLOWED_ORIGINS=*
+EOF
+```
+
+laptop
+
+```env
+# Configuración del WhatsApp Bridge (Laptop)
+
+# URL del servidor donde corre main.py en Docker
+# ⚠️ CAMBIAR esta IP por la IP real de tu servidor
+SERVER_URL=http://172.16.12.199:8523
+
+# Puerto local donde escucha el puente
+PUERTO_LOCAL=9000
+
+# Token compartido para autenticación
+# ⚠️ DEBE SER EL MISMO token que configuraste en el servidor Docker (.env del servidor)
+API_TOKEN=1234567890
+```
+

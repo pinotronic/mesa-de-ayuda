@@ -20,6 +20,10 @@ if (!fs.existsSync(CARPETA_COLA)) {
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 
+// Variable de estado de conexión
+let whatsappConectado = false;
+let sock = null;
+
 // --- UTILIDADES ---
 function log(mensaje, tipo = 'INFO') {
     const timestamp = new Date().toISOString();
@@ -80,7 +84,7 @@ setInterval(procesarCola, 120000);
 
 async function iniciar() {
     const { state, saveCreds } = await useMultiFileAuthState('sesion_wa');
-    const sock = makeWASocket({ 
+    sock = makeWASocket({ 
         auth: state,
         printQRInTerminal: false  // Deshabilitado, manejamos manualmente
     });
@@ -97,11 +101,13 @@ async function iniciar() {
         }
         
         if (connection === 'open') {
+            whatsappConectado = true;
             log('Conectado a WhatsApp y listo', 'SUCCESS');
             procesarCola(); // Procesar mensajes pendientes al conectar
         }
         
         if (connection === 'close') {
+            whatsappConectado = false;
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
             log(`Conexión a WhatsApp cerrada. Reconectar: ${shouldReconnect}`, 'WARNING');
             
@@ -168,6 +174,15 @@ async function iniciar() {
                 return res.status(400).json({ error: 'Faltan parámetros' });
             }
             
+            // Verificar conexión de WhatsApp antes de enviar
+            if (!whatsappConectado || !sock) {
+                log('WhatsApp desconectado, no se puede enviar mensaje', 'ERROR');
+                return res.status(503).json({ 
+                    error: 'WhatsApp desconectado',
+                    solucion: 'Reconecta WhatsApp escaneando el código QR'
+                });
+            }
+            
             await sock.sendMessage(numero, { text: texto });
             log(`Mensaje enviado a ${numero}`, 'SUCCESS');
             res.json({ ok: true, mensaje: 'Enviado correctamente' });
@@ -178,7 +193,7 @@ async function iniciar() {
     });
 
     app.get('/health', (req, res) => {
-        const estado = sock.ws?.readyState === 1 ? 'conectado' : 'desconectado';
+        const estado = whatsappConectado ? 'conectado' : 'desconectado';
         res.json({
             status: 'ok',
             whatsapp: estado,

@@ -1,0 +1,88 @@
+# EJEMPLO DE docker-compose.yml
+# INSTRUCCIONES:
+# 1. Copia este archivo como "docker-compose.yml"
+# 2. Reemplaza los valores marcados con ⚠️
+# 3. Ejecuta: docker-compose up -d
+
+version: '3.8'
+
+services:
+  whatsapp-tickets-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whatsapp-tickets-server
+    
+    # Puerto que se expone
+    # Puedes cambiar 8523 por otro puerto si ya está en uso
+    ports:
+      - "8523:8523"
+
+    environment:
+      # ⚠️ REQUERIDO: Tu API Key de DeepSeek
+      # Obtén uno en: https://platform.deepseek.com
+      DEEPSEEK_API_KEY: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+      # ⚠️ IMPORTANTE: IP de la máquina donde corre whatsapp-bridge.js
+      # Ej: 192.168.1.100, 172.16.12.100, localhost
+      IP_LAPTOP: "172.16.12.100"
+
+      # Puerto donde escucha whatsapp-bridge.js
+      # Por defecto es 9000
+      PUERTO_LAPTOP: "9000"
+
+      # ⚠️ Token de autenticación
+      # DEBE SER EXACTAMENTE IGUAL en whatsapp-bridge.js
+      API_TOKEN: "1234567890"
+
+      # Configuración de sesiones (minutos de inactividad)
+      SESSION_TIMEOUT_MINUTES: "15"
+
+      # Modelo de DeepSeek a usar
+      # Opciones: deepseek-chat, deepseek-reasoner, etc
+      DEEPSEEK_MODEL: "deepseek-chat"
+
+      # Máximo de tokens en respuestas de IA
+      DEEPSEEK_MAX_TOKENS: "2000"
+
+      # Carpetas donde se guardan fotos y logs
+      # (se crean automáticamente)
+      CARPETA_FOTOS: "fotos_evidencia"
+      CARPETA_LOGS: "logs_conversaciones"
+
+      # Tamaño máximo de imágenes en bytes (16MB)
+      MAX_IMAGE_SIZE: "16000000"
+
+      # Orígenes CORS permitidos (* = todos)
+      ALLOWED_ORIGINS: "*"
+
+      # No cambiar
+      PYTHONUNBUFFERED: "1"
+
+    # Volúmenes (dónde se guardan los datos)
+    # Recomendado: mantener como está para persistencia
+    volumes:
+      - ./fotos_evidencia:/app/fotos_evidencia
+      - ./logs_conversaciones:/app/logs_conversaciones
+      - ./tickets.db:/app/tickets.db
+
+    # Health check (verifica que el servicio está vivo)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8523/health"]
+      interval: 30s      # Cada 30 segundos
+      timeout: 10s       # Espera máximo 10 segundos
+      retries: 3         # Si falla 3 veces, marcar como unhealthy
+      start_period: 10s  # Espera 10 segundos después de iniciar
+
+    # Política de reinicio
+    # unless-stopped = reiniciar si falla (a menos que lo detengas)
+    restart: unless-stopped
+
+    # Red interna de Docker (no necesario cambiar)
+    networks:
+      - whatsapp-tickets-network
+
+# Red privada para los contenedores
+networks:
+  whatsapp-tickets-network:
+    driver: bridge

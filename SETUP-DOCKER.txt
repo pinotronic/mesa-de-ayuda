@@ -1,0 +1,200 @@
+================================================================================
+   SISTEMA DE TICKETS WHATSAPP CON IA - SETUP DOCKER
+================================================================================
+
+ARCHIVOS ACTUALIZADOS/CREADOS:
+================================================================================
+
+1. ✅ Dockerfile (ACTUALIZADO)
+   - Agregadas: carpeta logs_conversaciones, curl para health checks
+   - Variables de entorno para DeepSeek
+
+2. ✅ docker-compose.yml (CREADO)
+   - Configuración completa para Docker Compose
+   - Volúmenes para persistencia
+   - Health checks automáticos
+
+3. ✅ docker-compose.example.yml (CREADO)
+   - Ejemplo comentado para fácil configuración
+
+4. ✅ .dockerignore (CREADO)
+   - Archivos a ignorar en el build de Docker
+
+5. ✅ DOCKER.md (CREADO)
+   - Documentación detallada de Docker
+
+6. ✅ DEPLOYMENT.md (CREADO)
+   - Guía rápida de despliegue
+
+7. ✅ start-docker.bat (CREADO)
+   - Script de inicio para Windows
+
+8. ✅ stop-docker.bat (CREADO)
+   - Script de parada para Windows
+
+9. ✅ start-docker.sh (CREADO)
+   - Script de inicio para Linux/Mac
+
+10. ✅ stop-docker.sh (CREADO)
+    - Script de parada para Linux/Mac
+
+11. ✅ main.py (ACTUALIZADO)
+    - Sistema completo de conversaciones
+    - Integración con DeepSeek
+    - Gestión de sesiones
+
+12. ✅ requirements.txt (CREADO)
+    - Todas las dependencias Python necesarias
+
+13. ✅ .env (ACTUALIZADO)
+    - Configuración de DeepSeek
+
+14. ✅ index.html (ACTUALIZADO)
+    - Dashboard mejorado con nuevas funcionalidades
+
+================================================================================
+PASOS PARA DESPLEGAR EN DOCKER:
+================================================================================
+
+PASO 1: INSTALAR DOCKER
+   - Windows: https://www.docker.com/products/docker-desktop/
+   - Linux: sudo apt install docker.io docker-compose
+   - Mac: https://www.docker.com/products/docker-desktop/
+
+PASO 2: OBTENER API KEY DE DEEPSEEK
+   - Ir a: https://platform.deepseek.com
+   - Crear cuenta y obtener API Key
+   - Guardar: sk-xxxxxxxxxxxxx
+
+PASO 3: CONFIGURAR docker-compose.yml
+   Edita el archivo y busca:
+   DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY}"
+   
+   Reemplaza con tu API Key real o en línea de comandos:
+   export DEEPSEEK_API_KEY="sk-tu-api-key"
+
+   Verifica también:
+   - IP_LAPTOP (IP de la máquina del puente)
+   - PUERTO_LAPTOP (normalmente 9000)
+   - API_TOKEN (debe coincidir con whatsapp-bridge.js)
+
+PASO 4: CONSTRUIR E INICIAR
+   
+   Windows:
+   - Doble click en: start-docker.bat
+   
+   O manualmente:
+   docker-compose up -d
+   
+   Linux/Mac:
+   ./start-docker.sh
+   
+   O:
+   docker-compose up -d
+
+PASO 5: VERIFICAR QUE FUNCIONA
+   
+   Ver estado del contenedor:
+   docker-compose ps
+   
+   Ver logs:
+   docker-compose logs -f
+   
+   Health check:
+   curl http://localhost:8523/health
+   
+   Acceder al dashboard:
+   http://localhost:8523/
+
+PASO 6: ENVIAR PRIMER MENSAJE POR WHATSAPP
+   - El usuario completa la conversación
+   - Se crea el ticket automáticamente
+   - Aparece en el dashboard
+
+================================================================================
+VARIABLES DE ENTORNO PRINCIPALES:
+================================================================================
+
+DEEPSEEK_API_KEY          Tu API Key de DeepSeek (REQUERIDO)
+IP_LAPTOP                 IP de la máquina con whatsapp-bridge.js
+PUERTO_LAPTOP             Puerto del puente (normalmente 9000)
+API_TOKEN                 Token de autenticación (debe coincidir)
+SESSION_TIMEOUT_MINUTES   Timeout de sesiones (15 por defecto)
+
+================================================================================
+COMANDOS ÚTILES:
+================================================================================
+
+docker-compose ps              Ver estado del contenedor
+docker-compose logs            Ver todos los logs
+docker-compose logs -f         Ver logs en tiempo real
+docker-compose logs --tail=50  Ver últimas 50 líneas
+docker-compose restart         Reiniciar contenedor
+docker-compose down            Detener y eliminar contenedor
+docker-compose build           Reconstruir imagen
+docker-compose up -d           Iniciar en background
+docker exec -it whatsapp-tickets-server bash    Entrar al contenedor
+
+================================================================================
+ESTRUCTURA DE ARCHIVOS:
+================================================================================
+
+.
+├── Dockerfile                    # Configuración de Docker
+├── docker-compose.yml            # Configuración de Docker Compose
+├── docker-compose.example.yml    # Ejemplo comentado
+├── .dockerignore                 # Archivos a ignorar en build
+├── main.py                       # Backend principal
+├── index.html                    # Frontend/Dashboard
+├── requirements.txt              # Dependencias Python
+├── .env                          # Variables de entorno
+├── DOCKER.md                     # Documentación Docker
+├── DEPLOYMENT.md                 # Guía rápida
+├── SETUP-DOCKER.txt              # Este archivo
+├── start-docker.bat              # Script inicio (Windows)
+├── stop-docker.bat               # Script parada (Windows)
+├── start-docker.sh               # Script inicio (Linux/Mac)
+├── stop-docker.sh                # Script parada (Linux/Mac)
+│
+├── fotos_evidencia/              # Carpeta para fotos (creada en runtime)
+├── logs_conversaciones/          # Carpeta para logs (creada en runtime)
+├── tickets.db                    # BD SQLite (creada en runtime)
+│
+└── node_modules/                 # Dependencias del puente (no incluidas)
+
+================================================================================
+TROUBLESHOOTING:
+================================================================================
+
+❌ "Port 8523 already in use"
+   → Cambiar puerto en docker-compose.yml o:
+   → docker ps  (para ver qué usa el puerto)
+   → docker stop [container-id]
+
+❌ "DEEPSEEK_API_KEY is empty"
+   → Verificar que API Key esté correctamente configurada
+   → Restart: docker-compose restart
+
+❌ "Cannot connect to whatsapp-bridge"
+   → Verificar IP_LAPTOP y PUERTO_LAPTOP
+   → Verificar que API_TOKEN coincida
+   → Ver logs: docker-compose logs
+
+❌ "No such file or directory: main.py"
+   → Verificar que estés en el directorio correcto
+   → ls  (debe mostrar main.py, docker-compose.yml, etc)
+
+================================================================================
+PRÓXIMOS PASOS:
+================================================================================
+
+1. ✅ Instalar Docker
+2. ✅ Configurar docker-compose.yml con tu API Key
+3. ✅ Ejecutar: docker-compose up -d
+4. ✅ Verificar: curl http://localhost:8523/health
+5. ✅ Acceder: http://localhost:8523/
+6. ✅ Enviar mensaje de prueba por WhatsApp
+
+¡Sistema listo para producción! 🚀
+
+================================================================================
