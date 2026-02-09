@@ -97,3 +97,17 @@ Remove-Item -Recurse -Force sesion_wa
 
 # 3. Reiniciar
 npm start
+---
+# 1. Detener el puente (Ctrl+C en la terminal donde corre)
+
+# 2. Eliminar la carpeta de sesión
+Remove-Item -Recurse -Force sesion_wa
+
+# 3. Reiniciar
+npm start
+
+# ver logas servidor
+docker-compose logs -f
+
+# checar la conexion de la ia
+cat .env | grep DEEPSEEK
